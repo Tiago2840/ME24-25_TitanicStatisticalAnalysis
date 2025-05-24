@@ -338,3 +338,95 @@ class(dados)
     theme(axis.text.x = element_text(angle = 45, hjust = 1))
   
   
+################################################################################
+#  Fase 3
+################################################################################  
+
+####################################
+# Caracterização da variável SibSp #
+####################################
+
+# Variável quantitativa discreta, com 7 valores distintos possíveis (0, 1, 2, 3, 4, 5, 8)
+# Representa uma contagem de eventos (número de familiares que acompanhavam o passageiro)
+# Através do grtáfico de barras da frequência absoluta da variável (Linha 145), é possível verificar
+#   um pico claro em 0 ou 1, seuido de uma queda progressiva para valores maiores. Ou seja,
+#   Os valores são pequenos e assimétricos à direita.
+# Esta forma decresccente assimétrica é típica da Poisson.
+
+#   /*****************************************/
+#  /   Teste de ajustamento do Qui-Quadrado  /
+# /*****************************************/
+# H₀:Os dados de SibSp seguem uma distribuição de Poisson.
+# H₁:Os dados de SibSp não seguem uma distribuição de Poisson.
+lambda_sibSp = mean(dados$SibSp, na.rm = TRUE)  # Estimativa de λ
+
+# Tabela de frequências observadas
+tabela.frequencias.SibSp = table(dados$SibSp)
+
+# Calcular probabilidades teóricas da Poisson
+  # Número total de observações (n)
+  n.sibSp = sum(tabela.frequencias.SibSp)
+  # Criar vetor de valores observados (0 a 8)
+  valores.sibSp = as.numeric(names(tabela.frequencias.SibSp))
+  # Calcular probabilidades teóricas da Poisson, com o λ estimado
+  p.sibSp = dpois(valores.sibSp, lambda_sibSp)
+  # Frequências esperadas
+  freq.esperadas.sibSp = round(n.sibSp * p.sibSp, 2)
+freq.esperadas.sibSp
+  
+# Tabela de ajustamento
+tabela.ajustamento.sibSp = data.frame(
+  xi = valores.sibSp,
+  ni = as.numeric(tabela.frequencias.SibSp),
+  pi = round(p.sibSp, 4),
+  Ei = freq.esperadas.sibSp
+)
+print(tabela.ajustamento.sibSp)
+
+# Agrupando valores para o teste
+  tabela.agrupada.sibs = tabela.ajustamento.sibSp
+  tabela.agrupada.sibs$grupo = as.character(tabela.agrupada.sibs$xi)
+  # Agrupar valores maiores ou iguais ao limite
+    # Como o teste de ajustamento do Qui-Quadrado exige que todas as frequências 
+        # esperadas sejam ≥ 1, e que no máximo 20% sejam inferiores a 5, tivemos 
+        # de agrupar os valores maiores ou iguais a 5 numa única classe "≥ 5".
+        # Isto permite garantir a validade estatística do teste e manter a sua fiabilidade.
+  limite.agrupamento = 5
+  tabela.agrupada.sibs$grupo[tabela.agrupada.sibs$xi >= limite.agrupamento] = paste0("≥ ", limite.agrupamento)
+  # Reagrupar: somar ni, Ei, recalcular pi com Ei/n
+  tabela.agrupada.sibs = aggregate(
+    cbind(ni, Ei) ~ grupo, 
+    data = tabela.agrupada.sibs, 
+    FUN = sum
+  )
+  # Calcular pi = Ei / n
+  tabela.agrupada.sibs$pi = round(tabela.agrupada.sibs$Ei / sum(tabela.agrupada.sibs$ni), 4)
+  # Reorganizar colunas
+  tabela.agrupada.sibs = tabela.agrupada.sibs[, c("grupo", "ni", "pi", "Ei")]
+print(tabela.agrupada.sibs)
+
+# Calcular a estatística do teste de Qui-Quadrado
+q.sibs = sum((tabela.agrupada.sibs$ni - tabela.agrupada.sibs$Ei)^2 / tabela.agrupada.sibs$Ei)
+q.sibs
+
+# Graus de liberdade
+  # Número de grupos na tabela
+  k.sibs = nrow(tabela.agrupada.sibs)
+  # 1 parâmetro (λ) estimado.
+  gl.sibs = k.sibs - 1 - 1
+gl.sibs
+  
+# Calcular o valor crítico do Qui-Quadrado
+p.sibs = pchisq(q.sibs, df = gl.sibs, lower.tail = FALSE)
+p.sibs
+# Nível de significância
+alpha <- 0.05
+# Decisão
+if (p.sibs <= alpha) {
+  cat("Rejeita-se H₀: os dados NÃO seguem uma Poisson(λ)")
+} else {
+  cat("Não se rejeita H₀: os dados PODEM ser modelados por uma Poisson(λ)")
+}
+
+
+
